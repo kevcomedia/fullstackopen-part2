@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Filter from './components/Filter';
 import PersonForm from './components/PersonForm';
 import Persons from './components/Persons';
+import Notification from './components/Notification';
 import phonebook from './services/phonebook';
 
 const App = () => {
@@ -9,10 +10,24 @@ const App = () => {
   const [newName, setNewName] = useState('');
   const [newNumber, setNewNumber] = useState('');
   const [filter, setFilter] = useState('');
+  const [notificationMessage, setNotificationMessage] = useState(null);
+  const [notificationSuccess, setNotificationSuccess] = useState(true);
 
   useEffect(() => {
-    phonebook.getAll().then(setPersons);
+    phonebook
+      .getAll()
+      .then(setPersons)
+      .catch((err) => {
+        setNotificationMessage('Could not get numbers');
+        setNotificationSuccess(false);
+      });
   }, []);
+
+  useEffect(() => {
+    setTimeout(() => {
+      setNotificationMessage(null);
+    }, 3000);
+  }, [notificationMessage]);
 
   const handleNewNameChange = (event) => {
     setNewName(event.target.value);
@@ -26,9 +41,17 @@ const App = () => {
     const willDelete = window.confirm(`Delete ${person.name}?`);
     if (!willDelete) return;
 
-    phonebook.delete(person.id).then(() => {
-      setPersons(persons.filter((p) => p.id !== person.id));
-    });
+    phonebook
+      .delete(person.id)
+      .then(() => {
+        setPersons(persons.filter((p) => p.id !== person.id));
+        setNotificationMessage(`Deleted ${person.name}`);
+        setNotificationSuccess(true);
+      })
+      .catch((err) => {
+        setNotificationMessage(`Could not delete ${person.name}`);
+        setNotificationSuccess(false);
+      });
   };
 
   const handleFormSubmit = (event) => {
@@ -48,15 +71,35 @@ const App = () => {
       );
       if (!willUpdate) return;
 
-      phonebook.update(existingPerson.id, newPerson).then((updatedPerson) => {
-        setPersons(
-          persons.map((p) => (p.id === updatedPerson.id ? updatedPerson : p)),
-        );
-      });
+      phonebook
+        .update(existingPerson.id, newPerson)
+        .then((updatedPerson) => {
+          setPersons(
+            persons.map((p) => (p.id === updatedPerson.id ? updatedPerson : p)),
+          );
+          setNotificationMessage(`Updated ${updatedPerson.name}`);
+          setNotificationSuccess(true);
+        })
+        .catch((err) => {
+          setNotificationMessage(
+            `Information on ${
+              newPerson.name
+            } has already been removed from server`,
+          );
+          setNotificationSuccess(false);
+        });
     } else {
-      phonebook.create(newPerson).then((createdPerson) => {
-        setPersons(persons.concat(createdPerson));
-      });
+      phonebook
+        .create(newPerson)
+        .then((createdPerson) => {
+          setPersons(persons.concat(createdPerson));
+          setNotificationMessage(`Added ${createdPerson.name}`);
+          setNotificationSuccess(true);
+        })
+        .catch((err) => {
+          setNotificationMessage(`Could not add ${newPerson.name}`);
+          setNotificationSuccess(false);
+        });
     }
 
     setNewName('');
@@ -70,6 +113,11 @@ const App = () => {
   return (
     <div>
       <h1>Phonebook</h1>
+
+      <Notification
+        message={notificationMessage}
+        success={notificationSuccess}
+      />
 
       <Filter
         value={filter}
